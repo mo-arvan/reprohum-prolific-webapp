@@ -7,10 +7,11 @@ NUMBER_OF_TASKS = 60  # Number of tasks to create in the database
 import sqlite3
 from uuid import uuid4
 
+
 # Creates the DB file if it doesn't exist, and creates the tables if they don't exist.
-def initDatabase():
+def initDatabase(db_file):
     # Connect to SQLite database (or create it if it doesn't exist)
-    conn = sqlite3.connect('database.db')
+    conn = sqlite3.connect(db_file)
     # Create a cursor object using the cursor() method
     cursor = conn.cursor()
     # Define the schema for the 'tasks' table
@@ -40,7 +41,8 @@ CREATE TABLE IF NOT EXISTS results (
     conn.commit()
     conn.close()
 
-def initTasks(num_tasks, db_file='database.db'):
+
+def initTasks(num_tasks, completions_per_task, db_file):
     """
     Initializes a specified number of tasks in the 'tasks' table with default values.
     Each task will have multiple entries (as defined by COMPLETIONS_PER_TASK) with unique IDs but the same task number.
@@ -61,9 +63,9 @@ def initTasks(num_tasks, db_file='database.db'):
     VALUES (?, ?, NULL, NULL, NULL, ?);
     '''
 
-    # Insert the specified number of tasks, repeated according to COMPLETIONS_PER_TASK
+    # Insert the specified number of tasks, repeated according to completions_per_task
     for task_number in range(1, num_tasks + 1):
-        for _ in range(COMPLETIONS_PER_TASK):
+        for _ in range(completions_per_task):
             # Generate a unique ID for the task
             task_id = str(uuid4())
             # Execute the SQL query
@@ -74,8 +76,6 @@ def initTasks(num_tasks, db_file='database.db'):
     conn.close()
 
 
-
 # --------------------------------------------------
 
-initDatabase()
-initTasks(NUMBER_OF_TASKS)
+

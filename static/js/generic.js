@@ -1,7 +1,8 @@
 function initPage() {
     startWarningCountdown();
     startFailedCountdown();
-    document.getElementById("submit-button").addEventListener("click", sendData);
+    // instead of sending data on submit, we let the dev script validate and call sendData
+    // document.getElementById("submit-button").addEventListener("click", sendData);
 } 
 
 function checkForm() {
@@ -41,17 +42,23 @@ function collectData() {
             
         }
     });
+    let textareas = document.getElementsByTagName("textarea");
+    Array.from(textareas).forEach(function (element) {
+        data[element.name] = element.value;
+    });
 
-    alert(JSON.stringify(data));
+    // commenting since participants are not suppose to see this.
+    //alert(JSON.stringify(data));
 
     return JSON.stringify(data);
 }
 
 
 async function sendData() {
-    if (!checkForm()) {
-        return; // Do not send data if checkForm() returns false
-    }
+    // Instead of checking the form here, we let the dev script validate prior to calling sendData
+    // if (!checkForm()) {
+    //     return; // Do not send data if checkForm() returns false
+    // }
 
     const data = collectData();
     const url = "/"; // Replace with your server URL
