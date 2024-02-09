@@ -26,7 +26,7 @@ import DataManager as dm
 MAX_TIME = int(os.environ.get("MAX_TIME", 3600))
 TEMPLATE = os.environ.get("TEMPLATE", "templates/example.html")
 DATA = os.environ.get("DATA", "example.csv")
-PORT = os.environ.get("FLASK_SERVER_PORT", 9090)
+PORT = os.environ.get("PORT", 9090)
 NUMBER_OF_TASKS = int(os.environ.get("NUMBER_OF_TASKS", 60))
 COMPLETIONS_PER_TASK = int(os.environ.get("COMPLETIONS_PER_TASK", 3))
 DATABASE_FILE = os.environ.get("DATABASE_FILE", "tasks.db")

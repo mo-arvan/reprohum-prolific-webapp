@@ -68,3 +68,12 @@
 ```
    
 You could also repeat this code to alert the worker when they have 10 minutes left, etc.
+
+## Heroku Deployment
+
+```bash
+docker compose build web
+heroku config:set $(cat .env | sed '/^$/d; /#[[:print:]]*$/d') -a reprohum-server
+heroku container:push web -a reprohum-server
+heroku container:release web -a reprohum-server
+```

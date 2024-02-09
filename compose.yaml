@@ -5,20 +5,11 @@ services:
       target: builder
     # flask requires SIGINT to stop gracefully
     # (default stop signal from Compose is SIGTERM)
-    environment:
-      - FLASK_SERVER_PORT=9091
-      - COMPLETIONS_PER_TASK=3
-      - NUMBER_OF_TASKS=60
-      - MAX_TIME=3600
-      - DATA=/study/mturk_batch_pairwise_joint_full.csv
-      - TEMPLATE=/study/interface.html
-      - DATABASE_FILE=/study/db.sqlite
-      - RESULTS_DIR=/study/results
-      - LOG_DIR=/study/logs
-      - COMPLETION_CODE=1234
-      - EXPORT_KEY=1234
+    env_file:
+      - .env
     stop_signal: SIGINT
     ports:
       - '9091:9091'
     volumes:
-        - ./study:/study
+      - ./study:/study
+      - .:/app

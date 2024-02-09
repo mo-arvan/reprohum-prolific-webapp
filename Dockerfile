@@ -8,6 +8,8 @@ RUN pip3 install -r requirements.txt
 
 COPY . /app
 
+USER root
+
 #ENTRYPOINT ["python3"]
 #RUN python3 CreateDatabase.py
 CMD ["python3", "main.py"]
