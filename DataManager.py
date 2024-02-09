@@ -175,6 +175,17 @@ def get_all_tasks(db_file):
         print(f"An error occurred: {e}")
         return None
 
+def get_all_results(db_file):
+
+    try:
+        with create_connection(db_file) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM results")
+            results = cursor.fetchall()
+            return results
+    except sqlite3.Error as e:
+        print(f"An error occurred: {e}")
+        return None
 
 def get_specific_result(result_id, db_file):
     """

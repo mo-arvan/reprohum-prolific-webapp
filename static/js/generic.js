@@ -67,21 +67,21 @@ async function sendData() {
         const response = await fetch(url, {
             method: "POST",
             headers: {
-            "Content-Type": "application/json",
-        },
-        body: data,
-    });
+                "Content-Type": "application/json",
+            },
+            body: data,
+        });
 
-    if (response.status === 200) {
-        const jsonResponse = await response.json();
-        console.log("Data sent successfully", jsonResponse);
-        alert("We have received your submission. Thank you for your participation!");
+        if (response.status === 200) {
+            const jsonResponse = await response.json();
+            console.log("Data sent successfully", jsonResponse);
+            alert("We have received your submission. Thank you for your participation!");
 
-        // FIXME - turn this back on
-        // window.location.href = "https://app.prolific.co/submissions/complete?cc=12345"; // Replace with your Prolific completion URL
-    } else {
-        console.log("Failed to send data: " + response.statusText, response.status);
-    }
+            let completion_code = jsonResponse["completion_code"]
+            window.location.href = "https://app.prolific.co/submissions/complete?cc=" + completion_code
+        } else {
+            console.log("Failed to send data: " + response.statusText, response.status);
+        }
     } catch (error) {
         console.error("There was a problem sending the data", error);
     }

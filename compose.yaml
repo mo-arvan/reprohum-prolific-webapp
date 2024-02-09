@@ -14,6 +14,8 @@ services:
       - TEMPLATE=/study/interface.html
       - DATABASE_FILE=/study/db.sqlite
       - RESULTS_DIR=/study/results
+      - LOG_DIR=/study/logs
+      - COMPLETION_CODE=1234
     stop_signal: SIGINT
     ports:
       - '9091:9091'

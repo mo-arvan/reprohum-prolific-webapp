@@ -2,19 +2,19 @@
 # The data is in csv format, containing the data from the survey. File name should be DATA variable
 # The user interface is the interface.html file, which is a template for the survey.
 # Each interface has the following structure ${outputb1} where inside the brackets is the name of the variable.
-# There can be multiple variables - which should be defined in the python code to match the variable names in the csv file.
+# There can be multiple variables - which should be defined in the python code to match the variable names
+# in the csv file.
+import datetime
 import json
+import logging
 import os
-import pprint
 from threading import Lock
-
+import csv
 import pandas as pd
 from flask import Flask, request, render_template_string
 
-import DataManager as dm
 import CreateDatabase as create_db
-
-pp = pprint.PrettyPrinter(indent=4)
+import DataManager as dm
 
 # Should probably note the 1hr limit on the interface/instructions.
 # NOTE: If you do not want to expire tasks, set this to a very large number, 0 will not work.
@@ -27,6 +27,24 @@ NUMBER_OF_TASKS = int(os.environ.get("NUMBER_OF_TASKS", 60))
 COMPLETIONS_PER_TASK = int(os.environ.get("COMPLETIONS_PER_TASK", 3))
 DATABASE_FILE = os.environ.get("DATABASE_FILE", "tasks.db")
 RESULTS_DIR = os.environ.get("RESULTS_DIR", "data")
+LOG_DIR = os.environ.get("LOG_DIR", "study/logs")
+COMPLETION_CODE = os.environ.get("COMPLETION_CODE", "1234")
+
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+server_start_time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+log_file = os.path.join(LOG_DIR, f"{server_start_time_str}.log")
+logging.basicConfig(filename=log_file,
+                    filemode='a',
+                    format='%(asctime)s,%(msecs)d %(name)s %(levelname)s %(message)s',
+                    datefmt='%H:%M:%S',
+                    level=logging.DEBUG)
+
+logger = logging.getLogger('reprohum-server')
+
+logger.info("Server started.")
 
 if not os.path.exists(DATABASE_FILE):
     create_db.initDatabase(DATABASE_FILE)
@@ -68,7 +86,15 @@ def preprocess_html(html_content, df, task_id=-1):
 def index():
     if request.method == 'POST':
         # Print JSON from POST request
-        pp.pprint(request.json)
+        logger.info(f"Received JSON: {request.json}")
+
+        must_have_keys = ['task_id', 'prolific_pid', 'session_id', 'study_id']
+        for i in range(32):
+            must_have_keys.append(f'meaning{i}')
+
+        for key in must_have_keys:
+            if key not in request.json:
+                return {"result": f"Invalid Response, try again."}, 400
 
         # Save JSON to file with task_id as the folder and uuid as the filename
         task_id = request.json['task_id']
@@ -82,14 +108,16 @@ def index():
             json.dump(request.json, outfile)
 
         # Complete the task
-        print(task_id, request.json, prolific_pid)
+        logger.info(task_id, request.json, prolific_pid)
 
         complete = dm.complete_task(task_id, str(request.json), prolific_pid, DATABASE_FILE)
 
         if complete == -1:
             return {"result": "Something went wrong? Is this your task?"}, 500
 
-        return {"result": "OK"}, 200
+        response_json = {"result": "OK", "completion_code": COMPLETION_CODE}
+        logger.info(f"Returning JSON: {response_json}")
+        return response_json, 200
     else:
         return "Nothing Here.", 200
 
@@ -167,12 +195,43 @@ def results(task_id):
 # The route is set up for testing to manually check for abandoned tasks. It will return a list of abandoned tasks that have been opened up again.
 @app.route('/abdn')
 def check_abandonment():
-    print("Checking for abandoned tasks...")
+    logger.info("Checking for abandoned tasks...")
     dm.expire_tasks(DATABASE_FILE, MAX_TIME)  # Do not update MAX_TIME manually, use MAX_TIME variable
 
     tasks = dm.get_all_tasks(DATABASE_FILE)
 
     return tasks, 200
+
+
+@app.route('/export')
+def export():
+    if request.method != 'GET':
+        return "Invalid request", 400
+
+    tasks_df = df
+    task_db_list = dm.get_all_tasks(DATABASE_FILE)
+    results_db_list = dm.get_all_results(DATABASE_FILE)
+
+    if task_db_list is None or results_db_list is None:
+        return "No tasks or results found", 400
+
+    task_db_columns = ['id', 'task_number', 'prolific_id', 'time_allocated', 'session_id', 'status']
+    task_db_df = pd.DataFrame(task_db_list, columns=task_db_columns)
+
+    results_db_columns = ['id', 'json_string', 'prolific_id']
+    results_db_df = pd.DataFrame(results_db_list, columns=results_db_columns)
+
+    task_results_df = pd.merge(task_db_df, results_db_df, on=['id', "prolific_id"], how='left')
+
+    tasks_df['task_number'] = tasks_df.index + 1
+
+    tasks_joined = pd.merge(tasks_df, task_results_df, on='task_number', how='inner')
+
+    file_path = os.path.join(RESULTS_DIR, "tasks_joined")
+    tasks_joined.to_csv(file_path + '.csv', index=False, quoting=csv.QUOTE_ALL)
+    tasks_joined.to_pickle(file_path + '.pkl')
+
+    return "Exported tasks_joined.csv and tasks_joined.pkl", 200
 
 
 # Scheduler
