@@ -4,19 +4,23 @@
 # Each interface has the following structure ${outputb1} where inside the brackets is the name of the variable.
 # There can be multiple variables - which should be defined in the python code to match the variable names
 # in the csv file.
+import csv
 import datetime
+import io
 import json
 import logging
 import os
+import zipfile
 from threading import Lock
-import csv
+
 import pandas as pd
+from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, request, render_template_string
+from flask import send_file  # Should probably note the 1hr limit on the interface/instructions.
 
 import CreateDatabase as create_db
 import DataManager as dm
 
-# Should probably note the 1hr limit on the interface/instructions.
 # NOTE: If you do not want to expire tasks, set this to a very large number, 0 will not work.
 # Maximum time in seconds that a task can be assigned to a participant before it is abandoned - 1 hour = 3600 seconds
 MAX_TIME = int(os.environ.get("MAX_TIME", 3600))
@@ -29,6 +33,7 @@ DATABASE_FILE = os.environ.get("DATABASE_FILE", "tasks.db")
 RESULTS_DIR = os.environ.get("RESULTS_DIR", "data")
 LOG_DIR = os.environ.get("LOG_DIR", "study/logs")
 COMPLETION_CODE = os.environ.get("COMPLETION_CODE", "1234")
+EXPORT_KEY = os.environ.get("EXPORT_KEY", "1234")
 
 if not os.path.exists(LOG_DIR):
     os.makedirs(LOG_DIR)
@@ -207,6 +212,10 @@ def check_abandonment():
 def export():
     if request.method != 'GET':
         return "Invalid request", 400
+    export_key = request.args.get('EXPORT_KEY')
+
+    if export_key is None or export_key != EXPORT_KEY:
+        return "Invalid request", 400
 
     tasks_df = df
     task_db_list = dm.get_all_tasks(DATABASE_FILE)
@@ -226,18 +235,32 @@ def export():
     tasks_df['task_number'] = tasks_df.index + 1
 
     tasks_joined = pd.merge(tasks_df, task_results_df, on='task_number', how='inner')
+    tasks_joined.to_csv('tasks_joined.csv', index=False, quoting=csv.QUOTE_ALL)
+    tasks_joined.to_pickle('tasks_joined.pkl')
 
-    file_path = os.path.join(RESULTS_DIR, "tasks_joined")
-    tasks_joined.to_csv(file_path + '.csv', index=False, quoting=csv.QUOTE_ALL)
-    tasks_joined.to_pickle(file_path + '.pkl')
+    time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    zip_file_path = os.path.join(f"study_{time_str}.zip")
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.write('tasks_joined.csv')
+        zf.write('tasks_joined.pkl')
 
-    return "Exported tasks_joined.csv and tasks_joined.pkl", 200
+        zf.write(log_file, os.path.basename(log_file))
+        zf.write(DATABASE_FILE, os.path.basename(DATABASE_FILE))
+        for root, dirs, files in os.walk(RESULTS_DIR):
+            for file in files:
+                p = os.path.join(root, file)
+                zf.write(p)
+    memory_file.seek(0)
+    return send_file(memory_file,
+                     mimetype='application/zip',
+                     as_attachment=True,
+                     download_name=zip_file_path), 200
 
 
 # Scheduler
 
 # Run the check_abandonment function every hour - this has to be before the app.run() call
-from apscheduler.schedulers.background import BackgroundScheduler
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(func=check_abandonment, trigger="interval",
