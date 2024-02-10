@@ -170,7 +170,7 @@ def study():
     if task_id is None:
         return "No tasks available", 400
 
-    html_content = preprocess_html(html_content, df.iloc[[task_number]],
+    html_content = preprocess_html(html_content, df.iloc[[task_number - 1]],
                                    task_id)  # Params: html_content, df, task_id=-1
     html_content += f'<input type="hidden" id="prolific_pid" name="prolific_pid" value="{prolific_pid}">\n'
     html_content += f'<input type="hidden" id="session_id" name="session_id" value="{session_id}">\n'
@@ -229,12 +229,13 @@ def export():
 
     results_db_columns = ['id', 'json_string', 'prolific_id']
     results_db_df = pd.DataFrame(results_db_list, columns=results_db_columns)
-
     task_results_df = pd.merge(task_db_df, results_db_df, on=['id', "prolific_id"], how='left')
 
     tasks_df['task_number'] = tasks_df.index + 1
-
     tasks_joined = pd.merge(tasks_df, task_results_df, on='task_number', how='inner')
+
+    task_results_df.to_csv('task_results.csv', index=False, quoting=csv.QUOTE_ALL)
+    task_results_df.to_pickle('task_results.pkl')
     tasks_joined.to_csv('tasks_joined.csv', index=False, quoting=csv.QUOTE_ALL)
     tasks_joined.to_pickle('tasks_joined.pkl')
 
@@ -242,6 +243,9 @@ def export():
     zip_file_path = os.path.join(f"study_{time_str}.zip")
     memory_file = io.BytesIO()
     with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        zf.write('task_results.csv')
+        zf.write('task_results.pkl')
+
         zf.write('tasks_joined.csv')
         zf.write('tasks_joined.pkl')
 

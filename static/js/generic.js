@@ -78,7 +78,7 @@ async function sendData() {
             alert("We have received your submission. Thank you for your participation!");
 
             let completion_code = jsonResponse["completion_code"]
-            window.location.href = "https://app.prolific.co/submissions/complete?cc=" + completion_code
+            window.location.href = "https://app.prolific.com/submissions/complete?cc=" + completion_code
         } else {
             console.log("Failed to send data: " + response.statusText, response.status);
         }
